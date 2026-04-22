@@ -5,6 +5,11 @@ defaultTargets = ["mutex"]
 [[lean_lib]]
 name = "Mutex"
 
+[[require]]
+name = "veil"
+git = "https://github.com/verse-lab/veil.git"
+rev = "main"
+
 [[lean_exe]]
 name = "mutex"
 root = "Main"
