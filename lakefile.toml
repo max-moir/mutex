@@ -1,0 +1,10 @@
+name = "mutex"
+version = "0.1.0"
+defaultTargets = ["mutex"]
+
+[[lean_lib]]
+name = "Mutex"
+
+[[lean_exe]]
+name = "mutex"
+root = "Main"
