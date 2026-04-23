@@ -6,30 +6,32 @@ set_option veil.printCounterexamples true
 
 veil module Mutex
 
+-- Node definitions
 type node
 
 instantiate tot : TotalOrderWithMinimum node
 open TotalOrderWithMinimum
 
--- Nodes
-relation critical : node → Prop
 function choosing : node → Prop
 function number   : node → ℕ
+relation critical : node → Prop
 
 #gen_state
-
 #print State
+
 
 -- Initial state
 after_init {
-  critical N := False;
   choosing N := False;
   number N := 0;
+  critical N := False;
 }
 
 #print initialState?
 
--- Choose a ticket number
+
+-- Transition actions
+
 action choose (i : node)  = {
   require ¬ choosing i;
   require number i = 0;
@@ -43,10 +45,7 @@ action choose (i : node)  = {
   choosing i := False;
 }
 
-
--- Try to enter CS
 action enter (i : node) = {
-
   -- Only allow enter if not choosing
   require ¬ critical i;
   require number i ≠ 0;
@@ -61,7 +60,6 @@ action enter (i : node) = {
   critical i := True;
 }
 
--- Exit CS
 action exit (i : node) = {
   require critical i
   critical i := False
@@ -86,9 +84,11 @@ ghost relation can_enter (i : node) :=
 ghost relation can_exit (i : node) :=
     critical i
 
+
 -- Invariants
-safety [mutex] (critical I ∧ critical J) → I = J
+
 -- safety [deadlock_freedom] ∃ n, can_choose n ∨ can_enter n ∨ can_exit n
+safety [mutex] (critical I ∧ critical J) → I = J
 
 invariant [different_vals]
   number I ≠ 0 →
@@ -107,5 +107,21 @@ invariant [critical_has_ticket]
 
 #gen_spec
 #check_invariants
+
+
+-- Possible manual proof structure
+
+-- Manual proof that mutex is preserved under enter
+-- @[invProof]
+--   theorem enter_mutex :
+--       ∀ (st : @State node),
+--         ∀ (i : node),
+--           (@System node node_dec node_ne tot).assumptions st →
+--             (@System node node_dec node_ne tot).inv st →
+--               (@Mutex.enter.ext node node_dec node_ne tot i) st fun _ (st' : @State node) =>
+--                 @Mutex.mutex node node_dec node_ne tot st' := by
+--     -- Proof goes here
+--     sorry
+
 
 end Mutex
