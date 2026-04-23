@@ -16,7 +16,6 @@ open TotalOrderWithMinimum
 -- Nodes
 relation critical : node → Prop
 function choosing : node → Prop
-function trying : node → Prop
 function number   : node → ℕ
 
 #gen_state
@@ -35,6 +34,7 @@ after_init {
 
 action choose (i : node)  = {
   require ¬ choosing i;
+  require number i = 0;
   choosing i := True;
 
   -- Find ticket value greater than all others
@@ -43,14 +43,12 @@ action choose (i : node)  = {
   number i := t_max;
 
   choosing i := False;
-  trying i := True;
 }
 
 
 -- Try to enter CS
 action enter (i : node) = {
-  require trying i;
-  require number i != 0;
+  require number i ≠ 0;
   require critical i = False;
 
   -- Only allow enter if not choosing
@@ -63,7 +61,6 @@ action enter (i : node) = {
     (number i = number j ∧ lt i j);
 
   critical i := True;
-  trying i := False;
 }
 
 -- Exit CS
@@ -87,7 +84,11 @@ invariant [different_vals]
 invariant [critical_lowest]
   critical I →
      ∀ J, J ≠ I →
-       number I < number J
+       number J = 0 ∨ number I < number J
+
+invariant [critical_has_ticket]
+    critical I →
+        number I ≠ 0
 
 
 
