@@ -13,8 +13,8 @@ instantiate tot : TotalOrderWithMinimum node
 open TotalOrderWithMinimum
 
 function choosing : node → Prop
-function number   : node → ℕ
 relation critical : node → Prop
+function number   : node → ℕ
 
 #gen_state
 #print State
@@ -22,8 +22,8 @@ relation critical : node → Prop
 
 -- Initial state
 after_init {
-  choosing N := False;
   number N := 0;
+  choosing N := False;
   critical N := False;
 }
 
@@ -67,38 +67,22 @@ action exit (i : node) = {
 }
 
 
--- Deadlock freedom properties
-ghost relation can_choose (i : node) :=
-    ¬ choosing i ∧ number i = 0
-
-ghost relation can_enter (i : node) :=
-    ¬ critical i ∧  number i ≠ 0 ∧
-    ∀ j, j ≠ i →
-      ¬ choosing j ∧
-      (
-        (number j = 0) ∨
-        (number i < number j) ∨
-        (number i = number j ∧ lt i j)
-      )
-
-ghost relation can_exit (i : node) :=
-    critical i
-
-
 -- Invariants
 
--- safety [deadlock_freedom] ∃ n, can_choose n ∨ can_enter n ∨ can_exit n
-safety [mutex] (critical I ∧ critical J) → I = J
+safety [mutex]
+  ∀ I J, critical I → critical J → I = J
+
 
 invariant [different_vals]
   number I ≠ 0 →
     number I = number J →
       I = J
 
+
 invariant [critical_lowest]
   critical I →
-     ∀ J, J ≠ I →
-       number J = 0 ∨ number I < number J
+    ∀ J, J ≠ I → number J = 0 ∨ number I < number J
+
 
 invariant [critical_has_ticket]
     critical I →
@@ -108,20 +92,80 @@ invariant [critical_has_ticket]
 #gen_spec
 #check_invariants
 
+  @[invProof]
+  theorem enter_mutex1 :
+      ∀ (st : @State node),
+        ∀ (i : node),
+          (@System node node_dec node_ne tot).assumptions st →
+            (@System node node_dec node_ne tot).inv st →
+              (@Mutex.enter.ext node node_dec node_ne tot i) st fun _ (st' : @State node) =>
+                @Mutex.mutex node node_dec node_ne tot st' :=
+    by
 
--- Possible manual proof structure
+      -- Move state, process trying to enter i, and invariant into the Lean context.
+      intros st i assumptions inv
 
--- Manual proof that mutex is preserved under enter
--- @[invProof]
---   theorem enter_mutex :
---       ∀ (st : @State node),
---         ∀ (i : node),
---           (@System node node_dec node_ne tot).assumptions st →
---             (@System node node_dec node_ne tot).inv st →
---               (@Mutex.enter.ext node node_dec node_ne tot i) st fun _ (st' : @State node) =>
---                 @Mutex.mutex node node_dec node_ne tot st' := by
---     -- Proof goes here
---     sorry
+      -- Unfold goal and invariant definitions.
+      simp [Mutex.enter.ext, invSimp] at *
+
+      -- Split invariant into individual clauses.
+      rcases inv with ⟨critical_has_ticket, critical_lowest, different_vals, mutex⟩
+
+      -- Add implictations to lean context
+      rintro h_not_critical h_num h_choose h_lowest N M critN critM
+
+      -- Now we need to prove if two arbitrary processes N and M are both in their critical sections, then N = M
+      -- The currently entering process is i
+
+      -- Use our different_vals invariant to split the current goal
+      apply different_vals
+
+      -- Show that number N ≠ 0
+      · by_cases h : (N = i)
+        -- If N = i
+        · simp [h]
+          exact h_num
+        -- If N ≠ i
+        · simp [h] at critN
+          exact critical_has_ticket N critN
+
+      -- Show that number N = number M
+      · by_cases hN : N = i <;> by_cases hM : M = i
+        -- N = i and M = i
+        · simp [hN, hM]
+
+        -- N = i and M ≠ i
+        · simp [hM] at critM
+          have hMlow := critical_lowest M critM i (Ne.symm hM)
+          rcases hMlow with h0 | hlt
+          · simp [hN, h0]
+            omega
+          · have hilow := h_lowest M hM
+            rcases hilow with h0 | hlt' | ⟨heq, _⟩
+            · simp [hN] at critN
+              exact absurd h0 (critical_has_ticket M critM)
+            · omega
+            · omega
+
+        -- N ≠ i and M = i
+        · simp [hN] at critN
+          have hNlow := critical_lowest N critN i (Ne.symm hN)
+          rcases hNlow with h0 | hlt
+          · simp [hM, h0]
+            omega
+          · have hilow := h_lowest N hN
+            rcases hilow with h0 | hlt' | ⟨heq, _⟩
+            · simp [hM] at critM
+              exact absurd h0 (critical_has_ticket N critN)
+            · omega
+            · omega
+
+        -- N ≠ i and M ≠ i
+        · simp [hN] at critN
+          simp [hM] at critM
+          have same : N = M := by exact mutex N M critN critM
+          simp [same]
+
 
 
 end Mutex
