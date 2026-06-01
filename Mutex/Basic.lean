@@ -92,79 +92,89 @@ invariant [critical_has_ticket]
 #gen_spec
 #check_invariants
 
-  @[invProof]
-  theorem enter_mutex1 :
-      ∀ (st : @State node),
-        ∀ (i : node),
-          (@System node node_dec node_ne tot).assumptions st →
-            (@System node node_dec node_ne tot).inv st →
-              (@Mutex.enter.ext node node_dec node_ne tot i) st fun _ (st' : @State node) =>
-                @Mutex.mutex node node_dec node_ne tot st' :=
-    by
 
-      -- Move state, process trying to enter i, and invariant into the Lean context.
-      intros st i assumptions inv
+theorem deadlock_free :
+  ∀ (st : @State node),
+    ∀ (i : node),
+      (@System node node_dec node_ne tot).assumptions st →
+        (@System node node_dec node_ne tot).inv st →
+          false :=
+  by
+    sorry
 
-      -- Unfold goal and invariant definitions.
-      simp [Mutex.enter.ext, invSimp] at *
+@[invProof]
+theorem enter_mutex1 :
+    ∀ (st : @State node),
+      ∀ (i : node),
+        (@System node node_dec node_ne tot).assumptions st →
+          (@System node node_dec node_ne tot).inv st →
+            (@Mutex.enter.ext node node_dec node_ne tot i) st fun _ (st' : @State node) =>
+              @Mutex.mutex node node_dec node_ne tot st' :=
+  by
 
-      -- Split invariant into individual clauses.
-      rcases inv with ⟨critical_has_ticket, critical_lowest, different_vals, mutex⟩
+    -- Move state, process trying to enter i, and invariant into the Lean context.
+    intros st i assumptions inv
 
-      -- Add implictations to lean context
-      rintro h_not_critical h_num h_choose h_lowest N M critN critM
+    -- Unfold goal and invariant definitions.
+    simp [Mutex.enter.ext, invSimp] at *
 
-      -- Now we need to prove if two arbitrary processes N and M are both in their critical sections, then N = M
-      -- The currently entering process is i
+    -- Split invariant into individual clauses.
+    rcases inv with ⟨critical_has_ticket, critical_lowest, different_vals, mutex⟩
 
-      -- Use our different_vals invariant to split the current goal
-      apply different_vals
+    -- Add implictations to lean context
+    rintro h_not_critical h_num h_choose h_lowest N M critN critM
 
-      -- Show that number N ≠ 0
-      · by_cases h : (N = i)
-        -- If N = i
-        · simp [h]
-          exact h_num
-        -- If N ≠ i
-        · simp [h] at critN
-          exact critical_has_ticket N critN
+    -- Now we need to prove if two arbitrary processes N and M are both in their critical sections, then N = M
+    -- The currently entering process is i
 
-      -- Show that number N = number M
-      · by_cases hN : N = i <;> by_cases hM : M = i
-        -- N = i and M = i
-        · simp [hN, hM]
+    -- Use our different_vals invariant to split the current goal
+    apply different_vals
 
-        -- N = i and M ≠ i
-        · simp [hM] at critM
-          have hMlow := critical_lowest M critM i (Ne.symm hM)
-          rcases hMlow with h0 | hlt
-          · simp [hN, h0]
-            omega
-          · have hilow := h_lowest M hM
-            rcases hilow with h0 | hlt' | ⟨heq, _⟩
-            · simp [hN] at critN
-              exact absurd h0 (critical_has_ticket M critM)
-            · omega
-            · omega
+    -- Show that number N ≠ 0
+    · by_cases h : (N = i)
+      -- If N = i
+      · simp [h]
+        exact h_num
+      -- If N ≠ i
+      · simp [h] at critN
+        exact critical_has_ticket N critN
 
-        -- N ≠ i and M = i
-        · simp [hN] at critN
-          have hNlow := critical_lowest N critN i (Ne.symm hN)
-          rcases hNlow with h0 | hlt
-          · simp [hM, h0]
-            omega
-          · have hilow := h_lowest N hN
-            rcases hilow with h0 | hlt' | ⟨heq, _⟩
-            · simp [hM] at critM
-              exact absurd h0 (critical_has_ticket N critN)
-            · omega
-            · omega
+    -- Show that number N = number M
+    · by_cases hN : N = i <;> by_cases hM : M = i
+      -- N = i and M = i
+      · simp [hN, hM]
 
-        -- N ≠ i and M ≠ i
-        · simp [hN] at critN
-          simp [hM] at critM
-          have same : N = M := by exact mutex N M critN critM
-          simp [same]
+      -- N = i and M ≠ i
+      · simp [hM] at critM
+        have hMlow := critical_lowest M critM i (Ne.symm hM)
+        rcases hMlow with h0 | hlt
+        · simp [hN, h0]
+          omega
+        · have hilow := h_lowest M hM
+          rcases hilow with h0 | hlt' | ⟨heq, _⟩
+          · simp [hN] at critN
+            exact absurd h0 (critical_has_ticket M critM)
+          · omega
+          · omega
+
+      -- N ≠ i and M = i
+      · simp [hN] at critN
+        have hNlow := critical_lowest N critN i (Ne.symm hN)
+        rcases hNlow with h0 | hlt
+        · simp [hM, h0]
+          omega
+        · have hilow := h_lowest N hN
+          rcases hilow with h0 | hlt' | ⟨heq, _⟩
+          · simp [hM] at critM
+            exact absurd h0 (critical_has_ticket N critN)
+          · omega
+          · omega
+
+      -- N ≠ i and M ≠ i
+      · simp [hN] at critN
+        simp [hM] at critM
+        have same : N = M := by exact mutex N M critN critM
+        simp [same]
 
 
 
